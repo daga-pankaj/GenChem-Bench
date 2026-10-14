@@ -40,3 +40,25 @@ def test_comp_matching_chirality(use_chirality):
     else:
         assert results.scores[0][0] == 1.0
         assert results.scores[0][1] == 1.0
+
+
+def test_comp_matching_substructure_none_molecule_scores_nan():
+    # an invalid SMILES (None molecule from molcache) must score NaN rather
+    # than raising (issue #333)
+    import numpy as np
+
+    params = Parameters(["ClccccF"], [False])
+    component = MatchingSubstructure(params)
+
+    results = component(["not_a_molecule", "c1cc(F)ccc1Cl"])
+
+    assert np.isnan(results.scores[0][0])
+    assert results.scores[0][1] == 1.0
+
+
+@pytest.mark.parametrize("smarts", [["C(("], [["CO", "C(("]]])
+def test_comp_matching_invalid_smarts(smarts):
+    params = Parameters(smarts, [False])
+
+    with pytest.raises(ValueError, match=r"C\(\("):
+        MatchingSubstructure(params)

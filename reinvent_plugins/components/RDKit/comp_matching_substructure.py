@@ -42,12 +42,15 @@ class MatchingSubstructure:
 
         for smarts in params.smarts:
             patterns = []
+            smarts_list = smarts if isinstance(smarts, list) else [smarts]
 
-            if isinstance(smarts, list):
-                for smart in smarts:
-                    patterns.append(Chem.MolFromSmarts(smart))
-            else:
-                patterns = [Chem.MolFromSmarts(smarts)]
+            for smart in smarts_list:
+                pattern = Chem.MolFromSmarts(smart)
+
+                if pattern is None:
+                    raise ValueError(f"{__name__}: invalid SMARTS pattern '{smart}'")
+
+                patterns.append(pattern)
 
             if patterns:
                 self.patterns_per_endpoint.append(patterns)
@@ -62,14 +65,18 @@ class MatchingSubstructure:
         scores = []
 
         for patterns, use_chirality in zip(self.patterns_per_endpoint, self.use_chirality):
-            match = [
-                any(
-                    mol.HasSubstructMatch(pattern, useChirality=use_chirality)
-                    for pattern in patterns
-                )
-                for mol in mols
-            ]
+            match = []
+            for mol in mols:
+                if not mol:
+                    match.append(np.nan)
+                else:
+                    match.append(
+                        any(
+                            mol.HasSubstructMatch(pattern, useChirality=use_chirality)
+                            for pattern in patterns
+                        )
+                    )
 
-            scores.append(0.5 * (1.0 + np.array(match)))
+            scores.append(0.5 * (1.0 + np.array(match, dtype=float)))
 
         return ComponentResults(scores)
